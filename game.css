@@ -1,5 +1,22 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
 
-html {
-    background: black;
+#game-container {
+    transform: scale(0.34) translate(20px, -60px);
+    border-left: 30px solid #212725;
+    border-right: 30px solid #252b29;
+}
+
+
+.container {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    width: 100vw;
+    background: url('./assets/gba-removebg.png') no-repeat center center fixed;
 }
