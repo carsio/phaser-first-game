@@ -1,7 +1,7 @@
 let config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
+    width: 420,
+    height: 290,
     parent: "game-container",
     physics: {
         default: 'arcade',
@@ -18,8 +18,8 @@ let config = {
 
 
 let game = new Phaser.Game(config);
-let obstaclePos = 824;
 
+let obstaclePos = config.width + 20;
 let obstacle;
 let cactus;
 let ground;
@@ -28,12 +28,21 @@ let clouds;
 let score = 0;
 let highScore = 0;
 let scoreText;
+let overlay;
+let pauseText;
 let fontLoaded = false;
-
 let cloudsInfo = {};
+let gameStarted = false;
+let spaceKey;
+let soundtrack;
+let firstSpacePress = true;
 
 function preload () {
     this.load.script('webfont', '//ajax.googleapis.com/ajax/libs/webfont/1.4.7/webfont.js');
+    this.load.audio('ost', 'assets/ost.mp3')
+    this.load.audio('jump', 'assets/jump.wav');
+    this.load.audio('score', 'assets/correct.wav');
+    this.load.audio('gameover', 'assets/wrong.wav');
     this.load.spritesheet('dude', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
     this.load.image('sky', './assets/game/Background/background_0001.png');
     this.load.image('shallowWater', './assets/game/Tiles/tile_0053.png');
@@ -47,34 +56,56 @@ function preload () {
 }
 
 function create () {
+    loadAudios(this);
     loadFont(this);
     createBackgroud(this);
-    player = createPlayer(this);
     ground = createGround(this);
     river = createRiver(this);
     createCactus(this);
     clouds = creatClouds(this);
     createScore(this);
-        
+    player = createPlayer(this);
+
+    overlay = this.add.graphics(0, 0)
+    overlay.fillStyle(0x000000, 0.8);
+    overlay.fillRect(0, 0, config.width, config.height);
+    
     this.physics.add.collider(player, cactus, onColision, null, this); 
     this.physics.add.collider(player, ground);
+    spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 }
 
 function update () {
-    let cursor = this.input.keyboard.createCursorKeys();
-    playerControls(cursor);
+    if (spaceKey.isDown && !gameStarted) {
+        gameStarted = true;
+        firstSpacePress = true;
+        soundtrack.play();
+    };
+
+    if (!gameStarted) return;
+
+    playerControls(this);
+    overlay.setVisible(false);
+    pauseText.setVisible(false);
+        
     moveObject(cactus);
     ground.getChildren().forEach((child) => moveObject(child));
     river.getChildren().forEach((child) => moveObject(child));
 
     clouds.forEach((c) => {
-        let y = Phaser.Math.Between(0, 200);
         c.getChildren().forEach((child) => {
-            moveObjectAndRandom(child, -.5);
+            moveObjectAndRandom(child, -.2);
         });
     });
     
     updateScore();
+}
+
+function loadAudios(game) {
+    game.sound.add('jump');
+    game.sound.add('score');
+    game.sound.add('gameover');
+    soundtrack = game.sound.add('ost', { loop: true, volume: 0.5 });
 }
 
 function loadFont(game) {
@@ -85,12 +116,13 @@ function loadFont(game) {
         active: () => {
             fontLoaded = true;
             createScore(game);
+                
         }
 
     });
 }
 
-function moveObject(obstacle, speed = -3  ) { 
+function moveObject(obstacle, speed = -2) { 
     obstacle.x = obstacle.x + speed;
     if (obstacle.x < -24 ) {
         obstacle.x = obstaclePos;
@@ -107,11 +139,9 @@ function moveObjectAndRandom(obstacle , speed = -2) {
             y = info.y;
             x = info.x;
         } else {
-            console.log('first');
-            y = Phaser.Math.Between(0, 250);
+            y = getY() / 2;
             x = Phaser.Math.Between(obstaclePos, obstaclePos + 500);
             cloudsInfo[obstacle.id] = { x, y };
-            
         }
 
         obstacle.x = x;
@@ -120,7 +150,7 @@ function moveObjectAndRandom(obstacle , speed = -2) {
 }
 
 function createPlayer(game) {
-    player = game.physics.add.sprite(100, 300, 'dude');
+    player = game.physics.add.sprite(100, config.height - 105, 'dude');
     player.setBounce(0);
     player.setCollideWorldBounds(true);
     animatePlayer(game, player);
@@ -152,35 +182,37 @@ function animatePlayer(game, player) {
 function createBackgroud(game) {
     let graphics = game.add.graphics(0, 0);
     graphics.fillStyle(0xdff6f5, 1);
-    graphics.fillRect(0, 0, 800, 300);
+    graphics.fillRect(0, 0, config.width, config.height / 2);
 
-    let graphics2 = game.add.graphics(0, 300);
+    let graphics2 = game.add.graphics(0, config.height / 2);
     graphics2.fillStyle(0xffffff, 1);
-    graphics2.fillRect(0, 300, 800, 300);
+    graphics2.fillRect(0, config.height / 2, config.width, config.height / 2);
 
     backgroundGroup = game.add.group();
-    renderLoop((x, y) => backgroundGroup.create(x, y, 'sky'), 300);
+    renderLoop((x, y) => backgroundGroup.create(x, y, 'sky'), config.height / 2);
 }
 
 function createRiver(game) {
     let platforms = game.physics.add.staticGroup();
-    let deepWater = renderLoop((x, y) => platforms.create(x, y, 'water'), 591, 18);    
-    let shallowWater = renderLoop((x, y) => platforms.create(x, y, 'shallowWater'), 573, 18);
+    let deepWater = renderLoop((x, y) => platforms.create(x, y, 'water'), config.height - 9, 18);    
+    let shallowWater = renderLoop((x, y) => platforms.create(x, y, 'shallowWater'), config.height - 18, 18);
     return platforms; 
 }
 
 function createGround(game) {
     ground = game.physics.add.staticGroup();
-    renderLoop((x, y) => ground.create(x, y, 'ground'), 558, 18);
-    renderLoop((x, y) => ground.create(x, y, 'ground'), 540, 18);
-    renderLoop((x, y) => ground.create(x, y, 'ground'), 522, 18);
-    renderLoop((x, y) => ground.create(x, y, 'grass'), 504, 18);
+    let ref = config.height - 18;
+    renderLoop((x, y) => ground.create(x, y, 'ground'), ref, 18);
+    renderLoop((x, y) => ground.create(x, y, 'ground'), ref - 18, 18);
+    renderLoop((x, y) => ground.create(x, y, 'ground'), ref - 36, 18);
+    renderLoop((x, y) => ground.create(x, y, 'grass'), ref - 54, 18);
 
     return ground;
 }
 
 function createCactus(game) {
-    cactus = game.physics.add.image(504, 477, 'cactus').setScale(2);
+    let ref = config.height;
+    cactus = game.physics.add.image(obstaclePos, ref - 99, 'cactus').setScale(2);
     cactus.body.allowGravity = false;
     cactus.setImmovable(true);
 }
@@ -224,18 +256,19 @@ function makeLongCloud(platforms, x, y) {
 
 function creatClouds(game) {
     let clouds = game.physics.add.staticGroup();
-    makeCloud(clouds, 500, 200);
-    makeCloud(clouds, 700, 250);
-    makeCloud(clouds, 400, 150);
+
+    makeCloud(clouds, getX(), getY() / 2);
+    makeCloud(clouds, getX(), getY() / 2);
+    makeCloud(clouds, getX(), getY() / 2);
 
 
     let mediumClouds = game.physics.add.staticGroup();
-    makeMediumCloud(mediumClouds, 100, 100);
-    makeMediumCloud(mediumClouds, 150, 200);
+    makeMediumCloud(mediumClouds, getX(), getY() / 2);
+    makeMediumCloud(mediumClouds, getX(), getY() / 2);
 
     let longClouds = game.physics.add.staticGroup();
-    makeLongCloud(longClouds, 100, 100);
-    makeLongCloud(longClouds, 150, 200);
+    makeLongCloud(longClouds, getX(), getY() / 2);
+    makeLongCloud(longClouds, getX(), getY() / 2);
 
     return [clouds, mediumClouds, longClouds];
 }
@@ -247,51 +280,71 @@ function generateObstacle(x, y) {
     moveObject(obstacle);
 }
 
-function playerControls(cursor) {
+function playerControls(game) {
+    let cursor = game.input.keyboard.createCursorKeys();
     if (player.body) { 
         player.body.setGravityY(0);
         player.body.setDrag(0, 0);
     }
     if (player.anims) player.anims.play('right', !!player.body.touching.down);
-    if (cursor.space.isDown && player.body.touching.down) player.setVelocityY(-300); 
+    if (cursor.space.isDown && player.body.touching.down && !firstSpacePress) {
+        player.setVelocityY(-300);
+        game.sound.play('jump'); 
+    }
+    if (cursor.space.isUp) {
+        firstSpacePress = false;
+    }
 }
 
 function createScore(game) {
     score = 0;
     if (fontLoaded) {
         const style = {
-            font: "15px 'Press Start 2P'",
+            font: "10px 'Press Start 2P'",
             fill: "#000"
         };
-        scoreText = game.add.text(620, 16, '', style);
+        scoreText = game.add.text(config.width - 130 , 16, '', style);
         highScoreText = game.add.text(20, 16, 'high score: ' + highScore, style);
+        pauseText = game.add.text(config.width / 5, config.height / 2, 'Pressione a tecla de espaço \n       para começar', {...style, fill: '#fff'});
     }
 }
 
 function updateScore() {
-    score += 5;  
+    score += 5;
+    if (score % 5000 === 0) {
+        game.sound.play('score');   
+    }
     if (fontLoaded) {
         scoreText.setText('score: ' + score);
     }
 }
 
 function onColision(player, obstacle) {
+    this.sound.pauseAll();
+    this.sound.play('gameover');
     this.scene.restart();
     if (score > highScore) {
         highScore = score;
     }
+    gameStarted = false;
 }
 
 // Helper functions
 function renderLoop(fn, y, increment = 24) {
     let cloudPos = 0;
     let objs = [];
-    while(cloudPos < 848) {
+    while(cloudPos < config.width + 48) {
         objs.push(fn(cloudPos, y));
         cloudPos += increment;
     }
     return objs;
 }
 
+function getX() {
+    return Phaser.Math.Between(0, config.width);
+}
 
+function getY() {
+    return Phaser.Math.Between(0, config.height);
+}
   

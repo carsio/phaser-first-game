@@ -4,11 +4,17 @@
     box-sizing: border-box;
 }
 
+body {
+    /* background: #464646; */
+    font-family: 'Press Start 2P', cursive;
+    background-image: linear-gradient(to bottom, #4d34bb, #000000);
+}
+
 
 #game-container {
-    transform: scale(0.34) translate(20px, -60px);
-    border-left: 30px solid #212725;
-    border-right: 30px solid #252b29;
+    transform: translate(10px, -30px);
+    /* border-left: 30px solid #212725; */
+    /* border-right: 30px solid #252b29; */
 }
 
 
@@ -19,4 +25,5 @@
     height: 100vh;
     width: 100vw;
     background: url('./assets/gba-removebg.png') no-repeat center center fixed;
+    background-size: 960px;
 }
